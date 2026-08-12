@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // --- التعامل مع فك الضغط ---
+  // --- التعامل مع فك الضغط مع تحسين الأخطاء ---
   function handleExtract(file) {
     extractList.innerHTML = '';
     extractList.style.display = 'none';
@@ -57,6 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const ext = file.name.split('.').pop().toLowerCase();
 
+    // 1. معالجة ملفات ZIP
     if (ext === 'zip') {
       const zip = new JSZip();
       zip.loadAsync(file).then(zipData => {
@@ -71,36 +72,55 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         });
       }).catch(err => {
-        console.error(err);
-        extractStatus.innerText = 'حدث خطأ أثناء قراءة ملف ZIP.';
+        console.error("ZIP Error:", err);
+        extractStatus.innerText = 'حدث خطأ أثناء قراءة ملف ZIP (قد يكون الملف معطوباً أو محمي بكلمة سر).';
       });
-    } else {
-      // التعامل مع RAR, 7Z, TAR عبر BitJS
+    } 
+    // 2. معالجة باقي الصيغ (RAR, 7Z, TAR, GZ)
+    else {
       const reader = new FileReader();
       reader.onload = function(e) {
         try {
-          const unarchiver = bitjs.archive.decompress.unarchive(e.target.result);
-          if (!unarchiver) {
-            extractStatus.innerText = 'صيغة الملف غير مدعومة أو تالفة.';
+          if (typeof bitjs === 'undefined' || !bitjs.archive) {
+            extractStatus.innerText = 'خطأ: لم يتم تحميل مكتبة فك الضغط الخارجية بنجاح.';
             return;
           }
 
-          extractList.style.display = 'block';
-          unarchiver.addEventListener(bitjs.archive.UnarchiveEvent.Type.ENTRY, function(e) {
-            const blob = new Blob([e.entry.fileData]);
-            renderFileItem(e.entry.filename, blob);
+          const unarchiver = bitjs.archive.decompress.unarchive(e.target.result);
+          if (!unarchiver) {
+            extractStatus.innerText = 'صيغة الملف غير مدعومة أو أن الملف تالف.';
+            return;
+          }
+
+          let listHasFiles = false;
+
+          unarchiver.addEventListener(bitjs.archive.UnarchiveEvent.Type.ENTRY, function(ev) {
+            listHasFiles = true;
+            extractList.style.display = 'block';
+            const blob = new Blob([ev.entry.fileData]);
+            renderFileItem(ev.entry.filename, blob);
           });
 
           unarchiver.addEventListener(bitjs.archive.UnarchiveEvent.Type.FINISH, function() {
-            extractStatus.innerText = 'تم استخراج جميع الملفات بنجاح!';
+            if (listHasFiles) {
+              extractStatus.innerText = 'تم استخراج جميع الملفات بنجاح!';
+            } else {
+              extractStatus.innerText = 'لم يتم العثور على ملفات داخل الأرشيف (قد يكون مشفراً بكلمة سر).';
+            }
           });
 
           unarchiver.start();
+
         } catch (err) {
-          console.error(err);
-          extractStatus.innerText = 'فشل فك ضغط الملف.';
+          console.error("Unarchive Error:", err);
+          extractStatus.innerText = 'حدث خطأ أثناء فك الضغط: ' + (err.message || 'خطأ غير معروف');
         }
       };
+
+      reader.onerror = function() {
+        extractStatus.innerText = 'فشل في قراءة الملف من الجهاز.';
+      };
+
       reader.readAsArrayBuffer(file);
     }
   }
@@ -238,9 +258,8 @@ document.addEventListener('DOMContentLoaded', () => {
       saveAs(content, 'compressed_archive.zip');
       compressStatus.innerText = 'تم الضغط والتحميل بنجاح!';
     }).catch(err => {
-      console.error(err);
+      console.error("Compression Error:", err);
       compressStatus.innerText = 'حدث خطأ أثناء الضغط.';
     });
   });
 });
-
