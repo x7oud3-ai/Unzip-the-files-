@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>أداة إدارة الملفات المضغوطة الشاملة</title>
+  
+  <link rel="stylesheet" href="style.css">
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bitjs@0.1.0/archive/decompress.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+</head>
+<body>
+
+<div class="container">
+  <h1>مدير ومعالج الملفات الشامل</h1>
+
+  <div class="tabs">
+    <button class="tab-btn active" id="btn-tab-extract">فك الضغط والمعاينة</button>
+    <button class="tab-btn" id="btn-tab-compress">ضغط الملفات</button>
+  </div>
+
+  <div id="extract-tab" class="tab-content active">
+    <div class="drop-zone" id="extract-drop-zone">
+      <p>اضغط هنا لاختيار ملف مضغوط (ZIP, RAR, 7Z, TAR, GZ)</p>
+      <input type="file" id="extract-input" accept=".zip,.rar,.7z,.tar,.gz" style="display:none;">
+    </div>
+    
+    <div id="extract-status" class="status-msg"></div>
+    <div id="extract-list" class="file-list" style="display:none;"></div>
+  </div>
+
+  <div id="compress-tab" class="tab-content">
+    <div class="drop-zone" id="compress-drop-zone">
+      <p>اختر الملفات التي تريد ضغطها</p>
+      <input type="file" id="compress-input" multiple style="display:none;">
+    </div>
+
+    <div id="selected-compress-files" class="file-list" style="display:none;"></div>
+
+    <div class="options-group">
+      <label for="compress-format">اختر صيغة الضغط المطلوبة:</label>
+      <select id="compress-format">
+        <option value="zip">ZIP (الجامعة والأكثر دعمًا)</option>
+      </select>
+    </div>
+
+    <button class="btn-main" id="btn-start-compress">إنشاء الملف المضغوط وتحميله</button>
+    <div id="compress-status" class="status-msg"></div>
+  </div>
+</div>
+
+<div id="preview-modal" class="preview-modal">
+  <div class="preview-content">
+    <h3 id="preview-title">معاينة الملف</h3>
+    <div id="preview-body"></div>
+    <br>
+    <button id="btn-close-preview" class="btn-close">إغلاق المعاينة</button>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
+
