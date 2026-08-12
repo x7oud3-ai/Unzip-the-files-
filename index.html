@@ -7,8 +7,9 @@
   
   <link rel="stylesheet" href="style.css">
   
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/libarchive.js/dist/libarchive.js"></script>
 </head>
 <body>
 
@@ -23,7 +24,7 @@
   <div id="extract-tab" class="tab-content active">
     <div class="drop-zone" id="extract-drop-zone">
       <p>اضغط هنا لاختيار ملف مضغوط (ZIP, RAR, 7Z, TAR, GZ)</p>
-      <input type="file" id="extract-input" accept=".zip,.rar,.7z,.tar,.gz" style="display:none;">
+      <input type="file" id="extract-input" accept=".zip,.rar,.7z,.tar,.gz,.iso" style="display:none;">
     </div>
     
     <div id="extract-status" class="status-msg"></div>
@@ -41,7 +42,7 @@
     <div class="options-group">
       <label for="compress-format">اختر صيغة الضغط المطلوبة:</label>
       <select id="compress-format">
-        <option value="zip">ZIP (الصيغة المستقرة والمعتمدة)</option>
+        <option value="zip">ZIP (الجامعة والأكثر دعمًا)</option>
       </select>
     </div>
 
