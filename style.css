@@ -194,7 +194,6 @@ select, button, input[type="file"] {
   font-size: 14px;
 }
 
-/* Modal المعاينة */
 .preview-modal {
   display: none;
   position: fixed;
@@ -239,4 +238,3 @@ select, button, input[type="file"] {
   font-family: 'Consolas', 'Courier New', monospace;
   font-size: 13px;
 }
-
