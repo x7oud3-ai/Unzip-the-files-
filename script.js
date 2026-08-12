@@ -1,4 +1,11 @@
 document.addEventListener('DOMContentLoaded', () => {
+  // تهيئة محرك WebAssembly الشامل للتعامل مع Web Workers فورياً
+  if (window.Archive) {
+    Archive.init({
+      workerUrl: 'https://cdn.jsdelivr.net/npm/libarchive.js/dist/worker-bundle.js'
+    });
+  }
+
   // --- عناصر الواجهة ---
   const btnTabExtract = document.getElementById('btn-tab-extract');
   const btnTabCompress = document.getElementById('btn-tab-compress');
@@ -41,7 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // --- أحداث الإسقاط والرفع ---
+  // --- رفع الملفات ---
   extractDropZone.addEventListener('click', () => extractInput.click());
   extractInput.addEventListener('change', (e) => {
     if (e.target.files.length > 0) {
@@ -49,16 +56,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // --- معالجة فك الضغط المستقرة ---
+  // --- فك ضغط شامل وبشكل ثابت ومستقر ---
   async function handleExtract(file) {
     extractList.innerHTML = '';
     extractList.style.display = 'none';
-    extractStatus.innerText = 'جاري معالجة الملف...';
+    extractStatus.innerText = 'جاري معالجة الملف واستخراجه بواسطة WebAssembly...';
 
     const ext = file.name.split('.').pop().toLowerCase();
 
-    try {
-      if (ext === 'zip') {
+    // 1. معالجة سريعة لـ ZIP
+    if (ext === 'zip') {
+      try {
         const zip = new JSZip();
         const zipData = await zip.loadAsync(file);
         
@@ -73,12 +81,38 @@ document.addEventListener('DOMContentLoaded', () => {
             renderFileItem(entry.name, blob);
           }
         }
-      } else {
-        extractStatus.innerText = 'تنبيه: المتصفحات تدعم فك ضغط ZIP المباشر بطلب استقرار عالي. يرجى توفير ملفات ZIP.';
+      } catch (err) {
+        console.error(err);
+        extractStatus.innerText = 'حدث خطأ أثناء فك ضغط ملف ZIP.';
       }
-    } catch (err) {
-      console.error(err);
-      extractStatus.innerText = 'فشل في قراءة الملف. قد يكون الملف معطوباً أو محمياً بكلمة سر.';
+    } 
+    // 2. معالجة فائقة القوة لـ (RAR, 7Z, TAR, GZ) بواسطة LibArchive WebAssembly
+    else {
+      try {
+        const archive = await Archive.open(file);
+        const filesObj = await archive.extractFiles();
+
+        extractStatus.innerText = 'تم فك الضغط بنجاح!';
+        extractList.style.display = 'block';
+
+        await walkExtractedFiles(filesObj, '');
+      } catch (err) {
+        console.error(err);
+        extractStatus.innerText = 'فشل في فك الضغط. تأكد أن الملف ليس مشفراً بكلمة سر أو معطوباً.';
+      }
+    }
+  }
+
+  // دالة متكررة لتفريغ مجلدات RAR و 7Z المعقدة
+  async function walkExtractedFiles(obj, path) {
+    for (let key in obj) {
+      const item = obj[key];
+      const fullPath = path ? `${path}/${key}` : key;
+      if (item instanceof File) {
+        renderFileItem(fullPath, item);
+      } else if (typeof item === 'object') {
+        await walkExtractedFiles(item, fullPath);
+      }
     }
   }
 
@@ -92,13 +126,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const actions = document.createElement('div');
     actions.className = 'file-actions';
 
-    // زر المعاينة
+    // المعاينة
     const previewBtn = document.createElement('button');
     previewBtn.className = 'btn-sm btn-preview';
     previewBtn.innerText = 'معاينة';
     previewBtn.onclick = () => previewFile(filename, blob);
 
-    // قائمة خيارات تحويل صيغ الصور
+    // التحويل
     const ext = filename.split('.').pop().toLowerCase();
     let convertSelect = null;
     if (['png', 'jpg', 'jpeg', 'webp'].includes(ext)) {
@@ -113,7 +147,7 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
     }
 
-    // زر التنزيل
+    // التنزيل
     const downloadBtn = document.createElement('button');
     downloadBtn.className = 'btn-sm btn-download';
     downloadBtn.innerText = 'تحميل';
@@ -134,7 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
     extractList.appendChild(item);
   }
 
-  // --- معاينة المحتوى ---
+  // --- المعاينة ---
   function previewFile(filename, blob) {
     previewTitle.innerText = filename;
     previewBody.innerHTML = '';
@@ -164,7 +198,7 @@ document.addEventListener('DOMContentLoaded', () => {
     previewModal.style.display = 'none';
   });
 
-  // --- تحويل صيغ الصور ---
+  // --- التحويل ---
   function convertImageAndDownload(blob, filename, targetMime) {
     const img = new Image();
     img.src = URL.createObjectURL(blob);
@@ -183,7 +217,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
-  // --- ضغط الملفات ---
+  // --- الضغط ---
   compressDropZone.addEventListener('click', () => compressInput.click());
   compressInput.addEventListener('change', (e) => {
     filesToCompress = Array.from(e.target.files);
