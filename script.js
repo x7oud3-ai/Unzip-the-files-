@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // --- أحداث منطقة الإسقاط لفك الضغط ---
+  // --- أحداث الإسقاط والرفع ---
   extractDropZone.addEventListener('click', () => extractInput.click());
   extractInput.addEventListener('change', (e) => {
     if (e.target.files.length > 0) {
@@ -49,79 +49,36 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // --- التعامل مع فك الضغط مع تحسين الأخطاء ---
-  function handleExtract(file) {
+  // --- معالجة فك الضغط المستقرة ---
+  async function handleExtract(file) {
     extractList.innerHTML = '';
     extractList.style.display = 'none';
-    extractStatus.innerText = 'جاري معالجة الملف وتفكيكه...';
+    extractStatus.innerText = 'جاري معالجة الملف...';
 
     const ext = file.name.split('.').pop().toLowerCase();
 
-    // 1. معالجة ملفات ZIP
-    if (ext === 'zip') {
-      const zip = new JSZip();
-      zip.loadAsync(file).then(zipData => {
+    try {
+      if (ext === 'zip') {
+        const zip = new JSZip();
+        const zipData = await zip.loadAsync(file);
+        
         extractStatus.innerText = 'تم فك الضغط بنجاح!';
         extractList.style.display = 'block';
 
-        zipData.forEach((relativePath, zipEntry) => {
-          if (!zipEntry.dir) {
-            zipEntry.async('blob').then(blob => {
-              renderFileItem(zipEntry.name, blob);
-            });
+        const fileNames = Object.keys(zipData.files);
+        for (let name of fileNames) {
+          const entry = zipData.files[name];
+          if (!entry.dir) {
+            const blob = await entry.async('blob');
+            renderFileItem(entry.name, blob);
           }
-        });
-      }).catch(err => {
-        console.error("ZIP Error:", err);
-        extractStatus.innerText = 'حدث خطأ أثناء قراءة ملف ZIP (قد يكون الملف معطوباً أو محمي بكلمة سر).';
-      });
-    } 
-    // 2. معالجة باقي الصيغ (RAR, 7Z, TAR, GZ)
-    else {
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        try {
-          if (typeof bitjs === 'undefined' || !bitjs.archive) {
-            extractStatus.innerText = 'خطأ: لم يتم تحميل مكتبة فك الضغط الخارجية بنجاح.';
-            return;
-          }
-
-          const unarchiver = bitjs.archive.decompress.unarchive(e.target.result);
-          if (!unarchiver) {
-            extractStatus.innerText = 'صيغة الملف غير مدعومة أو أن الملف تالف.';
-            return;
-          }
-
-          let listHasFiles = false;
-
-          unarchiver.addEventListener(bitjs.archive.UnarchiveEvent.Type.ENTRY, function(ev) {
-            listHasFiles = true;
-            extractList.style.display = 'block';
-            const blob = new Blob([ev.entry.fileData]);
-            renderFileItem(ev.entry.filename, blob);
-          });
-
-          unarchiver.addEventListener(bitjs.archive.UnarchiveEvent.Type.FINISH, function() {
-            if (listHasFiles) {
-              extractStatus.innerText = 'تم استخراج جميع الملفات بنجاح!';
-            } else {
-              extractStatus.innerText = 'لم يتم العثور على ملفات داخل الأرشيف (قد يكون مشفراً بكلمة سر).';
-            }
-          });
-
-          unarchiver.start();
-
-        } catch (err) {
-          console.error("Unarchive Error:", err);
-          extractStatus.innerText = 'حدث خطأ أثناء فك الضغط: ' + (err.message || 'خطأ غير معروف');
         }
-      };
-
-      reader.onerror = function() {
-        extractStatus.innerText = 'فشل في قراءة الملف من الجهاز.';
-      };
-
-      reader.readAsArrayBuffer(file);
+      } else {
+        extractStatus.innerText = 'تنبيه: المتصفحات تدعم فك ضغط ZIP المباشر بطلب استقرار عالي. يرجى توفير ملفات ZIP.';
+      }
+    } catch (err) {
+      console.error(err);
+      extractStatus.innerText = 'فشل في قراءة الملف. قد يكون الملف معطوباً أو محمياً بكلمة سر.';
     }
   }
 
@@ -141,7 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
     previewBtn.innerText = 'معاينة';
     previewBtn.onclick = () => previewFile(filename, blob);
 
-    // قائمة تحويل الصور
+    // قائمة خيارات تحويل صيغ الصور
     const ext = filename.split('.').pop().toLowerCase();
     let convertSelect = null;
     if (['png', 'jpg', 'jpeg', 'webp'].includes(ext)) {
@@ -149,14 +106,14 @@ document.addEventListener('DOMContentLoaded', () => {
       convertSelect.style.padding = '4px';
       convertSelect.style.fontSize = '12px';
       convertSelect.innerHTML = `
-        <option value="">صيغتها الأصلية</option>
+        <option value="">الصيغة الأصلية</option>
         <option value="image/png">PNG</option>
         <option value="image/jpeg">JPG</option>
         <option value="image/webp">WEBP</option>
       `;
     }
 
-    // زر التحميل
+    // زر التنزيل
     const downloadBtn = document.createElement('button');
     downloadBtn.className = 'btn-sm btn-download';
     downloadBtn.innerText = 'تحميل';
@@ -177,7 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
     extractList.appendChild(item);
   }
 
-  // --- معاينة الملفات ---
+  // --- معاينة المحتوى ---
   function previewFile(filename, blob) {
     previewTitle.innerText = filename;
     previewBody.innerHTML = '';
@@ -197,7 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
       };
       reader.readAsText(blob);
     } else {
-      previewBody.innerHTML = '<p style="color:#64748b;">المعاينة المباشرة لهذه الصيغة غير متاحة. يمكنك تنزيل الملف لمراجعته.</p>';
+      previewBody.innerHTML = '<p style="color:#64748b;">المعاينة المباشرة غير متاحة لهذه الصيغة. استخدم زر التحميل بدلاً من ذلك.</p>';
     }
 
     previewModal.style.display = 'flex';
@@ -226,7 +183,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
-  // --- التعامل مع ضغط الملفات ---
+  // --- ضغط الملفات ---
   compressDropZone.addEventListener('click', () => compressInput.click());
   compressInput.addEventListener('change', (e) => {
     filesToCompress = Array.from(e.target.files);
@@ -243,11 +200,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   btnStartCompress.addEventListener('click', () => {
     if (!filesToCompress.length) {
-      alert('يرجى اختيار ملفات لضغطها أولاً');
+      alert('يرجى اختيار ملف واحد على الأقل لضغطها');
       return;
     }
 
-    compressStatus.innerText = 'جاري ضغط الملفات...';
+    compressStatus.innerText = 'جاري عملية الضغط...';
 
     const zip = new JSZip();
     filesToCompress.forEach(file => {
@@ -255,10 +212,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     zip.generateAsync({ type: 'blob' }).then(content => {
-      saveAs(content, 'compressed_archive.zip');
+      saveAs(content, 'archive.zip');
       compressStatus.innerText = 'تم الضغط والتحميل بنجاح!';
     }).catch(err => {
-      console.error("Compression Error:", err);
+      console.error(err);
       compressStatus.innerText = 'حدث خطأ أثناء الضغط.';
     });
   });
